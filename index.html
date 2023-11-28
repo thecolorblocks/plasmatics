@@ -8,6 +8,7 @@
     body {
       margin: 0;
       overflow: hidden;
+      background: black;
     }
     canvas {
       display: block;
@@ -15,17 +16,29 @@
   </style>
 </head>
 <body>
-  <canvas id="cymatics"></canvas>
+  <main id="cymatics"></main>
   <button id="button">start</button>
   <script type="module">
 
-    button.addEventListener('click', () => {
+    import * as fflate from 'https://ordinals.com/content/f815bd5c566c6e46de5cdb6ccb3a7043c63deeba61f4234baea84b602b0d4440i0'
 
-      const ordinal = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
+    const b64data = await (await fetch('http://ordinals.com/content/255ce0c5a0d8aca39510da72e604ef8837519028827ba7b7f723b7489f3ec3a4i0')).text()
+    const code = fflate.strFromU8(
+      fflate.decompressSync(
+        fflate.strToU8(
+          atob(b64data), true
+        )
+      )
+    )
+    const script = document.createElement('script')
+    script.innerHTML = code
+    document.head.appendChild(script)
+
+    const audioSetup = () => {
+      const audio = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
       const audioCtx = new AudioContext()
       const analyser = audioCtx.createAnalyser()
       const button = document.querySelector('#button')
-
       const audioElement = new Audio('/test.mp3')
       audioElement.crossOrigin = "anonymous"
       const sourceNode = audioCtx.createMediaElementSource(audioElement)
@@ -36,17 +49,106 @@
       analyser.fftSize = 32
       let frequencyData = new Uint8Array(analyser.frequencyBinCount)
 
-      function updateFrequencyData() {
-        analyser.getByteFrequencyData(frequencyData)
-        console.log(frequencyData)
-        requestAnimationFrame(updateFrequencyData)
+      return audioElement
+    }
+
+    let particles
+    let A = 0.02
+    let minWalk = 0.002
+
+    const params = {
+      nParticles: 5000,
+      canvasSize: [600, 600],
+      m: 9,
+      n: 1,
+      v: 0.05
+    }
+
+    const pi = 3.1415926535
+
+    const cymatics = (x, y, m, n) => {
+      return sin(pi*n*x) * sin(pi*m*y) + sin(pi*m*x) * sin(pi*n*y)
+    }
+
+    const handleEdge = (n) => {
+      if (n>=1) return 1
+      if (n<=0) return 0
+      return n
+    }
+
+    const initParticles = () => {
+      particles = []
+      for (let i = 0; i < params.nParticles; i++){
+        particles[i] = new Particle()
+      }
+    }
+
+    const initDOM = () => {
+      let canvas = createCanvas(...params.canvasSize)
+      canvas.parent('cymatics')
+    }
+
+    class Particle {
+
+      constructor(){
+        this.x = random(0, 1)
+        this.y = random(0, 1)
+        this.stochasticAmplitude
+
+        this.updateOffsets()
       }
 
-      audioElement.play().then(() => {
-        updateFrequencyData()
-      })
+      move() {
+        let eq = cymatics(this.x, this.y, params.m, params.n)
+        this.stochasticAmplitude = params.v * abs(eq)
+        if (this.stochasticAmplitude <= minWalk) this.stochasticAmplitude = minWalk
+        this.x += random(-this.stochasticAmplitude, this.stochasticAmplitude)
+        this.y += random(-this.stochasticAmplitude, this.stochasticAmplitude)
+        this.updateOffsets()
+      }
 
-    }, false)
+      updateOffsets(){
+        this.x = handleEdge(this.x)
+        this.y = handleEdge(this.y)
+        this.xScaled = width * this.x
+        this.yScaled = height * this.y
+      }
+
+      draw(){
+        point(this.xScaled, this.yScaled)
+      }
+    }
+
+    const resonate = () => {
+      particles.map( p => {
+        p.move()
+        p.draw()
+      })
+    }
+
+    const resetCanvas = () => {
+      background('black')
+      stroke('white')
+    }
+
+    window.setup = () => {
+      const audioElement = audioSetup()
+      initDOM()
+      initParticles()
+    }
+
+    window.draw = () => {
+      //analyser.getByteFrequencyData(frequencyData)
+      resetCanvas()
+      resonate()
+    }
+
+    /*
+    audioElement.play().then(() => {
+      update()
+    })*/
+
+    //button.addEventListener('click', begin, false)
   </script>
 </body>
 </html>
