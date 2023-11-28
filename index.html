@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cymatics</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cymatics"></canvas>
+  <button id="button">start</button>
+  <script type="module">
+
+    button.addEventListener('click', () => {
+
+      const ordinal = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
+      const audioCtx = new AudioContext()
+      const analyser = audioCtx.createAnalyser()
+      const button = document.querySelector('#button')
+
+      const audioElement = new Audio('/test.mp3')
+      audioElement.crossOrigin = "anonymous"
+      const sourceNode = audioCtx.createMediaElementSource(audioElement)
+      
+      sourceNode.connect(analyser)
+      analyser.connect(audioCtx.destination)
+
+      analyser.fftSize = 32
+      let frequencyData = new Uint8Array(analyser.frequencyBinCount)
+
+      function updateFrequencyData() {
+        analyser.getByteFrequencyData(frequencyData)
+        console.log(frequencyData)
+        requestAnimationFrame(updateFrequencyData)
+      }
+
+      audioElement.play().then(() => {
+        updateFrequencyData()
+      })
+
+    }, false)
+  </script>
+</body>
+</html>
