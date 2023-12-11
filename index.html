@@ -34,40 +34,62 @@
     script.innerHTML = code
     document.head.appendChild(script)
 
+    const insID = '1eab87f0048147a37b3be9f0f35227c77a7b258ce37ef1cf4a0e7adb16b20f5ei0'
+
     const audioSetup = () => {
-      const audio = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
+      //const audio = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
+      const audio = 'https://ordinals.com/content/' + insID
       const audioCtx = new AudioContext()
       const analyser = audioCtx.createAnalyser()
       const button = document.querySelector('#button')
-      const audioElement = new Audio('/test.mp3')
+      const audioElement = new Audio(audio)
       audioElement.crossOrigin = "anonymous"
+      audioElement.type = 'audio/mp3'
+      audioElement.loop = true
       const sourceNode = audioCtx.createMediaElementSource(audioElement)
       
       sourceNode.connect(analyser)
       analyser.connect(audioCtx.destination)
 
-      analyser.fftSize = 32
+      analyser.fftSize = 128
       let frequencyData = new Uint8Array(analyser.frequencyBinCount)
+      let bufferLength = analyser.frequencyBinCount
 
-      return audioElement
+      return [audioElement, audioCtx, analyser, frequencyData, bufferLength]
     }
+
+    let audioElement, audioCtx, analyser, frequencyData, bufferLength, amplitude
 
     let particles
     let A = 0.02
     let minWalk = 0.001
 
     const params = {
-      nParticles: 10000,
+      nParticles: 12000,
       canvasSize: [600, 600],
-      m: 16,
-      n: 9,
-      v: 0.05
+      m0: 0,
+      m1: 0,
+      m2: 0,
+      n: parseInt(insID[0], 16) % 8 + 1,
+      a: parseInt(insID[1], 16) % 4 + 1,
+      b: parseInt(insID[2], 16) % 4 + 1,
+      v: 0.05,
+      noiseL: 1,
+      shapeConstant: 0.03,
+      ampFactor: 0.0001
     }
+    console.log(params)
+
+    const colors = [
+      'cyan',
+      'purple',
+      'blue'
+    ]
 
     const pi = Math.PI
 
     const cymatics = (x, y, m, n) => {
-      return Math.sin(pi*n*x) * Math.sin(pi*m*y) + Math.sin(pi*m*x) * Math.sin(pi*n*y)
+      return params.a * Math.sin(pi*n*x) * Math.sin(pi*m*y) + params.b * Math.sin(pi*m*x) * Math.sin(pi*n*y)
     }
 
     const handleEdge = (n) => {
@@ -94,17 +116,18 @@
         this.x = random(0, 1)
         this.y = random(0, 1)
         this.stochasticAmplitude
+        this.type = Math.floor(random(0, 3))
 
         this.updateOffsets()
       }
 
       // Use shader code to optimize
       move() {
-        let eq = cymatics(this.x, this.y, params.m, params.n)
+        let eq = cymatics(this.x, this.y, params[`m${this.type}`], params.n)
         this.stochasticAmplitude = params.v * Math.abs(eq)
         if (this.stochasticAmplitude <= minWalk) this.stochasticAmplitude = minWalk
-        this.x += (Math.random() * (this.stochasticAmplitude*2) - this.stochasticAmplitude) * noise(this.x) * 1.5
-        this.y += (Math.random() * (this.stochasticAmplitude*2) - this.stochasticAmplitude) * noise(this.y) * 1.5
+        this.x += (Math.random() * (this.stochasticAmplitude*2) - this.stochasticAmplitude) * noise(this.x) * params.noiseL
+        this.y += (Math.random() * (this.stochasticAmplitude*2) - this.stochasticAmplitude) * noise(this.y) * params.noiseL
         this.updateOffsets()
       }
 
@@ -117,10 +140,18 @@
 
       draw(){
         point(this.xScaled, this.yScaled)
+        //stroke(colors[this.type])
+        strokeWeight(2)
       }
     }
 
     const resonate = () => {
+      analyser.getByteFrequencyData(frequencyData)
+      amplitude = frequencyData.reduce((sum, value) => sum + value, 0) / bufferLength
+      minWalk = amplitude * params.ampFactor
+      params.m0 = Math.ceil(frequencyData[9]*params.shapeConstant)
+      params.m1 = Math.ceil(frequencyData[6]*params.shapeConstant)
+      params.m2 = Math.ceil(frequencyData[3]*params.shapeConstant)
       particles.map( p => {
         p.move()
         p.draw()
@@ -133,23 +164,24 @@
     }
 
     window.setup = () => {
-      const audioElement = audioSetup()
+      [audioElement, audioCtx, analyser, frequencyData, bufferLength] = audioSetup()
       initDOM()
       initParticles()
+      audioElement.addEventListener('canplaythrough', () => {
+        console.log('ready')
+      }, false)
     }
 
-    window.draw = () => {
-      //analyser.getByteFrequencyData(frequencyData)
-      resetCanvas()
-      resonate()
+    const begin = () => {
+      audioCtx.resume()
+      audioElement.play()
+      window.draw = () => {
+        resetCanvas()
+        resonate()
+      }
     }
 
-    /*
-    audioElement.play().then(() => {
-      update()
-    })*/
-
-    //button.addEventListener('click', begin, false)
+    button.addEventListener('click', begin, false)
   </script>
 </body>
 </html>
