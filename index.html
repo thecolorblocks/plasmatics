@@ -34,7 +34,7 @@
     script.innerHTML = code
     document.head.appendChild(script)
 
-    const insID = '1eab87f0048147a37b3be9f0f35227c77a7b258ce37ef1cf4a0e7adb16b20f5ei0'
+    const insID = 'e47f4f20f7d8729748f3e80a36b9e2d600b642880139bffb8394ead26136652ei0'
 
     const audioSetup = () => {
       //const audio = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
@@ -73,10 +73,11 @@
       n: parseInt(insID[0], 16) % 8 + 1,
       a: parseInt(insID[1], 16) % 4 + 1,
       b: parseInt(insID[2], 16) % 4 + 1,
-      v: 0.05,
+      v: 0.04,
       noiseL: 1,
-      shapeConstant: 0.03,
-      ampFactor: 0.0001
+      shapeConstant: 0.05,
+      ampFactor: 0.0001,
+      smoothingFactor: 0.3
     }
     console.log(params)
 
@@ -149,9 +150,9 @@
       analyser.getByteFrequencyData(frequencyData)
       amplitude = frequencyData.reduce((sum, value) => sum + value, 0) / bufferLength
       minWalk = amplitude * params.ampFactor
-      params.m0 = Math.ceil(frequencyData[9]*params.shapeConstant)
-      params.m1 = Math.ceil(frequencyData[6]*params.shapeConstant)
-      params.m2 = Math.ceil(frequencyData[3]*params.shapeConstant)
+      params.m0 = Math.ceil(frequencyData[4]*params.smoothingFactor*params.shapeConstant)
+      params.m1 = Math.ceil(frequencyData[2]*params.smoothingFactor*params.shapeConstant)
+      params.m2 = Math.ceil(frequencyData[2]*params.smoothingFactor*params.shapeConstant)
       particles.map( p => {
         p.move()
         p.draw()
