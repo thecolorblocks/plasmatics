@@ -34,10 +34,9 @@
     script.innerHTML = code
     document.head.appendChild(script)
 
-    const insID = '38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
+    const insID = '1eab87f0048147a37b3be9f0f35227c77a7b258ce37ef1cf4a0e7adb16b20f5ei0'
 
     const audioSetup = () => {
-      //const audio = 'https://ordinals.com/content/38044fd0aebd10be731c862a2cc1b4602f6bddaff789fd384e4bbf60407b26d4i0'
       const audio = 'https://ordinals.com/content/' + insID
       const audioCtx = new AudioContext()
       const analyser = audioCtx.createAnalyser()
@@ -80,9 +79,10 @@
       noiseL: 1,
       shapeConstant: 0.005,
       shapeBaseConstant: 0,
-      ampFactor: 0.00001
+      ampFactor: 0.00002,
+      colors: [255, 255, 255],
+      colorMode: true
     }
-    console.log(params)
 
     const colors = [
       'cyan',
@@ -170,7 +170,9 @@
 
       draw(){
         point(this.xScaled, this.yScaled)
-        //stroke(colors[this.type])
+        if (params.colorMode) {
+          stroke(params.colors[0], params.colors[1], params.colors[2])
+        }
         strokeWeight(2)
       }
     }
@@ -186,12 +188,7 @@
       params.m0 = barkConstant
       params.m1 = melConstant
       params.n = centroidConstant
-      //console.log(centroid(frequencyData))
-      /*
-      params.m0 = Math.ceil(frequencyData[8]*params.shapeConstant) + params.shapeBaseConstant
-      params.m1 = Math.ceil(frequencyData[6]*params.shapeConstant) + params.shapeBaseConstant
-      params.m2 = Math.ceil(frequencyData[4]*params.shapeConstant) + params.shapeBaseConstant
-      */
+      if (params.colorMode) params.colors = [frequencyData[2], frequencyData[10], frequencyData[30]]
       particles.map( p => {
         p.move()
         p.draw()
