@@ -21,6 +21,17 @@
   <script type="module">
 
     import * as fflate from 'https://ordinals.com/content/f815bd5c566c6e46de5cdb6ccb3a7043c63deeba61f4234baea84b602b0d4440i0'
+    
+    // OST Testing UI
+    import ost from '/ost.js'
+    const select = document.createElement('select')
+    for (let i = 0; i < ost.length; i++) {
+      const option = document.createElement('option')
+      option.value = ost[i]
+      option.textContent = `OST-${i+1}`
+      select.appendChild(option)
+    }
+    document.body.appendChild(select)
 
     const b64data = await (await fetch('http://ordinals.com/content/255ce0c5a0d8aca39510da72e604ef8837519028827ba7b7f723b7489f3ec3a4i0')).text()
     const code = fflate.strFromU8(
@@ -34,10 +45,11 @@
     script.innerHTML = code
     document.head.appendChild(script)
 
-    const insID = '1eab87f0048147a37b3be9f0f35227c77a7b258ce37ef1cf4a0e7adb16b20f5ei0'
+    let insID = ost[4]
+    let audio = 'https://ordinals.com/content/' + insID
+    select.value = insID
 
     const audioSetup = () => {
-      const audio = 'https://ordinals.com/content/' + insID
       const audioCtx = new AudioContext()
       const analyser = audioCtx.createAnalyser()
       const button = document.querySelector('#button')
@@ -66,22 +78,34 @@
     let A = 0.02
     let minWalk = 0.01
 
+    const getN = () => {
+      return parseInt(insID[0], 16) % 8 + 1
+    }
+
+    const getA = () => {
+      return parseInt(insID[1], 16) % 4 + 1
+    }
+
+    const getB = () => {
+      return parseInt(insID[2], 16) % 4 + 1
+    }
+
     const params = {
       nParticles: 12000,
       canvasSize: [600, 600],
       m0: 0,
       m1: 0,
-      n: 0,
-      //n: parseInt(insID[0], 16) % 8 + 1,
-      a: parseInt(insID[1], 16) % 4 + 1,
-      b: parseInt(insID[2], 16) % 4 + 1,
+      m2: 0,
+      n: getN,
+      a: getA,
+      b: getB,
       v: 0.04,
-      noiseL: 1,
-      shapeConstant: 0.005,
+      noiseL: 1.1,
+      shapeConstant: 0.006,
       shapeBaseConstant: 0,
-      ampFactor: 0.00002,
+      ampFactor: 0.00001,
       colors: [255, 255, 255],
-      colorMode: true
+      colorMode: false
     }
 
     const colors = [
@@ -93,11 +117,11 @@
     const pi = Math.PI
 
     const cymatics = (x, y, m, n) => {
-      return params.a * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y+.5)) + params.b * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y+.5))
+      return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y+.5)) - params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y+.5))
     }
 
-    const bark = (frequency) => {
-      return 13 * Math.atan(0.00076*frequency) + 3.5 * atan(Math.pow((frequency/7500), 2))
+    const bark = (f) => {
+      return 13 * Math.atan(0.00076*f) + 3.5 * atan(Math.pow((f/7500), 2))
     }
 
     const mel = (f) => {
@@ -145,19 +169,19 @@
       constructor(){
         this.x = random(0, 1)
         this.y = random(0, 1)
-        this.stochasticAmplitude
-        this.type = Math.floor(random(0, 2))
+        this.oscillation
+        this.type = Math.floor(random(0, 3))
 
         this.updateOffsets()
       }
 
       // Use shader code to optimize
       move() {
-        let eq = cymatics(this.x, this.y, params[`m${this.type}`], params.n)
-        this.stochasticAmplitude = params.v * Math.abs(eq)
-        if (this.stochasticAmplitude <= minWalk) this.stochasticAmplitude = minWalk
-        this.x += (Math.random() * (this.stochasticAmplitude*2) - this.stochasticAmplitude) * params.noiseL
-        this.y += (Math.random() * (this.stochasticAmplitude*2) - this.stochasticAmplitude) * params.noiseL
+        let distance = cymatics(this.x, this.y, params[`m${this.type}`], params.n())
+        this.oscillation = params.v * Math.abs(distance)
+        if (this.oscillation <= minWalk) this.oscillation = minWalk
+        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
+        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
         this.updateOffsets()
       }
 
@@ -169,11 +193,9 @@
       }
 
       draw(){
-        point(this.xScaled, this.yScaled)
-        if (params.colorMode) {
-          stroke(params.colors[0], params.colors[1], params.colors[2])
-        }
+        stroke(params.colors[0]*.7+255*.3, params.colors[1]*.7+255*.3, params.colors[2]*.7+255*.3)
         strokeWeight(2)
+        point(this.xScaled, this.yScaled)
       }
     }
 
@@ -187,8 +209,8 @@
       let centroidConstant = Math.ceil(centroid(frequencyData)*params.shapeConstant) + params.shapeBaseConstant
       params.m0 = barkConstant
       params.m1 = melConstant
-      params.n = centroidConstant
-      if (params.colorMode) params.colors = [frequencyData[2], frequencyData[10], frequencyData[30]]
+      params.m2 = centroidConstant
+      if (params.colorMode) params.colors = [frequencyData[2], frequencyData[25], frequencyData[50]]
       particles.map( p => {
         p.move()
         p.draw()
@@ -209,16 +231,23 @@
       }, false)
     }
 
+    window.draw = () => {
+      resetCanvas()
+      resonate()
+    }
+
     const begin = () => {
       audioCtx.resume()
       audioElement.play()
-      window.draw = () => {
-        resetCanvas()
-        resonate()
-      }
     }
 
     button.addEventListener('click', begin, false)
+
+    select.addEventListener('change', (event) => {
+      insID = event.target.value
+      audio = 'https://ordinals.com/content/' + insID
+      audioElement.src = audio
+    }, false)
   </script>
 </body>
 </html>
