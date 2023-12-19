@@ -118,24 +118,28 @@
       a: getA,
       b: getB,
       v: 0.04,
-      noiseL: 1.1,
+      noiseL: 1.5,
       shapeConstant: 0.006,
       shapeBaseConstant: 0,
       ampFactor: 0.00001,
       colors: [255, 255, 255],
-      colorMode: false
+      colorMode: false,
+      particleSizeFactor: 100,
+      particleVariationL: 3
     }
 
-    const colors = [
-      'cyan',
-      'purple',
-      'blue'
+    let colors = [
+      `#${insID.slice(3, 6)}`,
+      `#${insID.slice(6, 9)}`,
+      `#${insID.slice(9, 12)}`,
     ]
+
+    colors = ['blue', 'indigo', 'violet']
 
     const pi = Math.PI
 
     const cymatics = (x, y, m, n) => {
-      return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y+.5)) - params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y+.5))
+      return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y-.5)) + params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y-.5))
     }
 
     const bark = (f) => {
@@ -188,18 +192,19 @@
         this.x = random(0, 1)
         this.y = random(0, 1)
         this.oscillation
-        this.type = Math.floor(random(0, 3))
+        this.type = Math.floor(random(0, params.particleVariationL))
+        this.distance
 
         this.updateOffsets()
       }
 
       // Use shader code to optimize
       move() {
-        let distance = cymatics(this.x, this.y, params[`m${this.type}`], params.n())
-        this.oscillation = params.v * Math.abs(distance)
+        this.distance = Math.abs( cymatics(this.x, this.y, params[`m${this.type}`], params.n()) )
+        this.oscillation = params.v * this.distance
         if (this.oscillation <= minWalk) this.oscillation = minWalk
-        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
-        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
+        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.x) * params.noiseL
+        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.y) * params.noiseL
         this.updateOffsets()
       }
 
@@ -211,8 +216,12 @@
       }
 
       draw(){
-        stroke(params.colors[0]*.7+255*.3, params.colors[1]*.7+255*.3, params.colors[2]*.7+255*.3)
-        strokeWeight(2)
+        //const pColor = color(params.colors[0]*.7+255*.3, params.colors[1]*.7+255*.3, params.colors[2]*.7+255*.3)
+        const pColor = color(colors[this.type])
+        //pColor.setAlpha((1-this.distance*.5)*150)
+        pColor.setAlpha(3)
+        stroke(pColor)
+        strokeWeight(Math.ceil((1-this.distance*.5)*params.particleSizeFactor))
         point(this.xScaled, this.yScaled)
       }
     }
@@ -222,9 +231,9 @@
       analyser.getByteTimeDomainData(timeDomainData)
       amplitude = timeDomainData.reduce((sum, value) => sum + value, 0) / bufferLength
       minWalk = amplitude * params.ampFactor
-      let barkConstant = Math.ceil(barkCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
-      let melConstant = Math.ceil(melCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
-      let centroidConstant = Math.ceil(centroid(frequencyData)*params.shapeConstant) + params.shapeBaseConstant
+      let barkConstant = (barkCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
+      let melConstant = (melCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
+      let centroidConstant = (centroid(frequencyData)*params.shapeConstant) + params.shapeBaseConstant
       params.m0 = barkConstant
       params.m1 = melConstant
       params.m2 = centroidConstant
@@ -265,6 +274,12 @@
       insID = event.target.value
       audio = 'https://ordinals.com/content/' + insID
       audioElement.src = audio
+      /*
+      colors = [
+        `#${insID.slice(3, 6)}`,
+        `#${insID.slice(6, 9)}`,
+        `#${insID.slice(9, 12)}`,
+      ]*/
     }, false)
 
     colorsOption.addEventListener('change', (event) => {
