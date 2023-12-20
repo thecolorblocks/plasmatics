@@ -19,10 +19,6 @@
 <body>
   <main id="cymatics"></main>
   <button id="button">start</button>
-  <div>
-    <input type="checkbox" id="colors" name="scales" />
-    <label for="colors">Colors</label>
-  </div>
   <script type="module">
     // OST Testing UI
     const ost = [
@@ -47,11 +43,9 @@
       select.appendChild(option)
     }
     document.body.appendChild(select)
-    let insID = ost[4]
+    let insID = ost[0]
     let audio = 'https://ordinals.com/content/' + insID
     select.value = insID
-
-    const colorsOption = document.body.querySelector('input#colors')
 
     import * as fflate from 'https://ordinals.com/content/f815bd5c566c6e46de5cdb6ccb3a7043c63deeba61f4234baea84b602b0d4440i0'
 
@@ -74,7 +68,7 @@
       const audioElement = new Audio(audio)
       audioElement.crossOrigin = "anonymous"
       audioElement.type = 'audio/mp3'
-      audioElement.loop = true
+      audioElement.loop = false
       const sourceNode = audioCtx.createMediaElementSource(audioElement)
       
       sourceNode.connect(analyser)
@@ -122,24 +116,32 @@
       shapeConstant: 0.006,
       shapeBaseConstant: 0,
       ampFactor: 0.00001,
-      colors: [255, 255, 255],
-      colorMode: false,
       particleSizeFactor: 100,
-      particleVariationL: 3
+      particleVariationL: 3,
+      waitingPeriod: 3000,
+      saturation: 255,
+      brightness: 255
     }
-
-    let colors = [
-      `#${insID.slice(3, 6)}`,
-      `#${insID.slice(6, 9)}`,
-      `#${insID.slice(9, 12)}`,
-    ]
-
-    colors = ['blue', 'indigo', 'violet']
 
     const pi = Math.PI
 
+    let colors = []
+
     const cymatics = (x, y, m, n) => {
       return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y-.5)) + params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y-.5))
+    }
+
+    const complementaries = (initialAngle) => {
+      // Assume 0-255
+      let wholeAngle = 255
+      let angle = Math.floor(wholeAngle / 6)
+      let colors = [
+        color(initialAngle, params.saturation, params.brightness),
+        color((initialAngle+angle)%wholeAngle, params.saturation, params.brightness),
+        color((initialAngle+angle*2)%wholeAngle, params.saturation, params.brightness)
+      ]
+      colors.map(c => c.setAlpha(2))
+      return colors
     }
 
     const bark = (f) => {
@@ -216,11 +218,7 @@
       }
 
       draw(){
-        //const pColor = color(params.colors[0]*.7+255*.3, params.colors[1]*.7+255*.3, params.colors[2]*.7+255*.3)
-        const pColor = color(colors[this.type])
-        //pColor.setAlpha((1-this.distance*.5)*150)
-        pColor.setAlpha(3)
-        stroke(pColor)
+        stroke(colors[this.type])
         strokeWeight(Math.ceil((1-this.distance*.5)*params.particleSizeFactor))
         point(this.xScaled, this.yScaled)
       }
@@ -246,15 +244,22 @@
 
     const resetCanvas = () => {
       background('black')
-      stroke('white')
     }
 
     window.setup = () => {
       [audioElement, audioCtx, analyser, frequencyData, timeDomainData, bufferLength, frequencyBinWidth] = audioSetup()
       initDOM()
       initParticles()
+      colorMode(HSB, 255)
+      colors = complementaries(parseInt(insID.slice(4, 6), 16))
       audioElement.addEventListener('canplaythrough', () => {
         console.log('ready')
+      }, false)
+
+      audioElement.addEventListener('ended', () => {
+        window.setTimeout(() => {
+          audioElement.play()
+        }, params.waitingPeriod)
       }, false)
     }
 
@@ -274,17 +279,7 @@
       insID = event.target.value
       audio = 'https://ordinals.com/content/' + insID
       audioElement.src = audio
-      /*
-      colors = [
-        `#${insID.slice(3, 6)}`,
-        `#${insID.slice(6, 9)}`,
-        `#${insID.slice(9, 12)}`,
-      ]*/
-    }, false)
-
-    colorsOption.addEventListener('change', (event) => {
-      params.colorMode = event.target.checked
-      params.colors = [255, 255, 255]
+      colors = complementaries(parseInt(insID.slice(4, 6), 16))
     }, false)
   </script>
 </body>
