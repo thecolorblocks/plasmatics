@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SEEKER OF CYMATICS</title>
+  <title>CYMATICS</title>
   <style>
     body {
       margin: 0;
@@ -43,7 +43,7 @@
       select.appendChild(option)
     }
     document.body.appendChild(select)
-    let insID = ost[0]
+    let insID = ost[9]
     let audio = 'https://ordinals.com/content/' + insID
     select.value = insID
 
@@ -88,7 +88,7 @@
 
     let particles
     let A = 0.02
-    let minWalk = 0.01
+    let minWalk = 0.005
 
     const getN = () => {
       return parseInt(insID[0], 16) % 8 + 1
@@ -102,6 +102,22 @@
       return parseInt(insID[2], 16) % 4 + 1
     }
 
+    const getColorSeed = () => {
+      return parseInt(insID.slice(4, 6), 16) % 16
+    }
+
+    const colorWheel16 = (initialAngle) => {
+      const nColors = 16
+      const degree = params.HSBFactor / nColors
+      let colors = []
+      colorMode(HSB, params.HSBFactor)
+      for (let i = 0; i < nColors; i++) {
+        let c = color(initialAngle + i*degree, params.saturation, params.brightness)
+        colors.push(c)
+      }
+      return colors
+    }
+
     const params = {
       nParticles: 12000,
       canvasSize: [600, 600],
@@ -111,19 +127,25 @@
       n: getN,
       a: getA,
       b: getB,
-      v: 0.04,
-      noiseL: 1.5,
-      shapeConstant: 0.006,
+      v: 0.2,
+      noiseL: 1,
+      shapeConstant: 0.008,
       shapeBaseConstant: 0,
-      ampFactor: 0.00001,
+      ampFactor: 0.00008,
       particleSizeFactor: 100,
       particleVariationL: 3,
+      particleAlpha: 2,
       waitingPeriod: 3000,
+      colorSeed: getColorSeed,
+      HSBFactor: 255,
+      HSBInitialAngle: 50,
       saturation: 255,
       brightness: 255
     }
 
     const pi = Math.PI
+
+    let spectrum = []
 
     let colors = []
 
@@ -131,16 +153,29 @@
       return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y-.5)) + params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y-.5))
     }
 
-    const complementaries = (initialAngle) => {
-      // Assume 0-255
-      let wholeAngle = 255
+    const complementaries = (c) => {
+      let wholeAngle = params.HSBFactor
       let angle = Math.floor(wholeAngle / 6)
+      let h = hue(c)
       let colors = [
-        color(initialAngle, params.saturation, params.brightness),
-        color((initialAngle+angle)%wholeAngle, params.saturation, params.brightness),
-        color((initialAngle+angle*2)%wholeAngle, params.saturation, params.brightness)
+        color(h, params.saturation, params.brightness),
+        color((h+angle)%wholeAngle, params.saturation, params.brightness),
+        color((h+angle*2)%wholeAngle, params.saturation, params.brightness)
       ]
-      colors.map(c => c.setAlpha(2))
+      colors.map(c => c.setAlpha(params.particleAlpha))
+      return colors
+    }
+
+    const triads = (c) => {
+      let wholeAngle = params.HSBFactor
+      let angle = Math.floor(wholeAngle / 3)
+      let h = hue(c)
+      let colors = [
+        color(h, params.saturation, params.brightness),
+        color((h+angle)%wholeAngle, params.saturation, params.brightness),
+        color((h+angle*2)%wholeAngle, params.saturation, params.brightness)
+      ]
+      colors.map(c => c.setAlpha(params.particleAlpha))
       return colors
     }
 
@@ -166,7 +201,7 @@
 
     const melCentroid = (frequencyData, frequencyBinWidth) => {
       const sum = frequencyData.reduce((acc, value) => acc + value, 0)
-      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value * mel(index*frequencyBinWidth), 0)
+      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value * mel(index*frequencyBinWidth) * (255-index), 0)
       return (sum === 0) ? 0 : weightedSum / sum
     }
 
@@ -205,8 +240,8 @@
         this.distance = Math.abs( cymatics(this.x, this.y, params[`m${this.type}`], params.n()) )
         this.oscillation = params.v * this.distance
         if (this.oscillation <= minWalk) this.oscillation = minWalk
-        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.x) * params.noiseL
-        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.y) * params.noiseL
+        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.distance) * params.noiseL
+        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.distance) * params.noiseL
         this.updateOffsets()
       }
 
@@ -219,7 +254,7 @@
 
       draw(){
         stroke(colors[this.type])
-        strokeWeight(Math.ceil((1-this.distance*.5)*params.particleSizeFactor))
+        strokeWeight(Math.ceil(1-this.distance*.5)*params.particleSizeFactor)
         point(this.xScaled, this.yScaled)
       }
     }
@@ -251,7 +286,9 @@
       initDOM()
       initParticles()
       colorMode(HSB, 255)
-      colors = complementaries(parseInt(insID.slice(4, 6), 16))
+      noiseSeed(99)
+      spectrum = colorWheel16(params.HSBInitialAngle)
+      colors = complementaries(spectrum[params.colorSeed()])
       audioElement.addEventListener('canplaythrough', () => {
         console.log('ready')
       }, false)
@@ -279,7 +316,7 @@
       insID = event.target.value
       audio = 'https://ordinals.com/content/' + insID
       audioElement.src = audio
-      colors = complementaries(parseInt(insID.slice(4, 6), 16))
+      colors = complementaries(spectrum[params.colorSeed()])
     }, false)
   </script>
 </body>
