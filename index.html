@@ -129,7 +129,7 @@
     }
 
     const params = {
-      nParticles: 12000,
+      nParticles: 3000,
       canvasSize: [600, 600],
       m0: 0,
       m1: 0,
@@ -144,7 +144,7 @@
       ampFactor: 0.00001,
       particleSizeFactor: 100,
       particleVariationL: 3,
-      particleAlpha: 2,
+      particleAlpha: 10,
       waitingPeriod: 3000,
       isColor: getIsColor,
       colorSeed: getColorSeed,
@@ -212,7 +212,7 @@
 
     const centroid = (frequencyData) => {
       const sum = frequencyData.reduce((acc, value) => acc + value, 0)
-      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value * index, 0)
+      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value, 0)
       return (sum === 0) ? 0 : weightedSum / sum
     }
 
