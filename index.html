@@ -19,6 +19,10 @@
 <body>
   <main id="cymatics"></main>
   <button id="button">start</button>
+  <div>
+    <input type="checkbox" id="colors" name="colors" checked />
+    <label for="colors">Colors</label>
+  </div>
   <script type="module">
     // OST Testing UI
     const ost = [
@@ -43,9 +47,11 @@
       select.appendChild(option)
     }
     document.body.appendChild(select)
-    let insID = ost[9]
+    let insID = ost[11]
     let audio = 'https://ordinals.com/content/' + insID
     select.value = insID
+
+    const colorCheckbox = document.body.querySelector('input#colors')
 
     import * as fflate from 'https://ordinals.com/content/f815bd5c566c6e46de5cdb6ccb3a7043c63deeba61f4234baea84b602b0d4440i0'
 
@@ -102,6 +108,10 @@
       return parseInt(insID[2], 16) % 4 + 1
     }
 
+    const getIsColor = () => {
+      return colorCheckbox.checked
+    }
+
     const getColorSeed = () => {
       return parseInt(insID.slice(4, 6), 16) % 16
     }
@@ -127,18 +137,19 @@
       n: getN,
       a: getA,
       b: getB,
-      v: 0.2,
-      noiseL: 1,
-      shapeConstant: 0.008,
+      v: 0.04,
+      noiseL: 1.1,
+      shapeConstant: 0.006,
       shapeBaseConstant: 0,
-      ampFactor: 0.00008,
+      ampFactor: 0.00001,
       particleSizeFactor: 100,
       particleVariationL: 3,
       particleAlpha: 2,
       waitingPeriod: 3000,
+      isColor: getIsColor,
       colorSeed: getColorSeed,
       HSBFactor: 255,
-      HSBInitialAngle: 50,
+      HSBInitialAngle: -60,
       saturation: 255,
       brightness: 255
     }
@@ -146,6 +157,8 @@
     const pi = Math.PI
 
     let spectrum = []
+
+    const aurora = ['#FF443D', '#FFF23D', '#84FF3D', '#3DFFF9', '#403DFF', '#FF3DF2']
 
     let colors = []
 
@@ -166,14 +179,24 @@
       return colors
     }
 
-    const triads = (c) => {
+    const splitComplementaries = (c) => {
       let wholeAngle = params.HSBFactor
-      let angle = Math.floor(wholeAngle / 3)
+      let angle = Math.floor(wholeAngle * 0.4)
       let h = hue(c)
       let colors = [
         color(h, params.saturation, params.brightness),
         color((h+angle)%wholeAngle, params.saturation, params.brightness),
-        color((h+angle*2)%wholeAngle, params.saturation, params.brightness)
+        color((h-angle)%wholeAngle, params.saturation, params.brightness)
+      ]
+      colors.map(c => c.setAlpha(params.particleAlpha))
+      return colors
+    }
+
+    const insHexColors = () => {
+      let colors = [
+        color(parseInt(insID.slice(4,6), 16), params.saturation, params.brightness),
+        color(parseInt(insID.slice(6,8), 16), params.saturation, params.brightness),
+        color(parseInt(insID.slice(8,10), 16), params.saturation, params.brightness),
       ]
       colors.map(c => c.setAlpha(params.particleAlpha))
       return colors
@@ -253,8 +276,13 @@
       }
 
       draw(){
-        stroke(colors[this.type])
-        strokeWeight(Math.ceil(1-this.distance*.5)*params.particleSizeFactor)
+        if (params.isColor()) {
+          stroke(colors[this.type])
+          strokeWeight((1-this.distance*.5)*params.particleSizeFactor)
+        } else {
+          stroke('white')
+          strokeWeight((1-this.distance*.5))
+        }
         point(this.xScaled, this.yScaled)
       }
     }
@@ -270,7 +298,6 @@
       params.m0 = barkConstant
       params.m1 = melConstant
       params.m2 = centroidConstant
-      if (params.colorMode) params.colors = [frequencyData[2], frequencyData[25], frequencyData[50]]
       particles.map( p => {
         p.move()
         p.draw()
@@ -289,6 +316,7 @@
       noiseSeed(99)
       spectrum = colorWheel16(params.HSBInitialAngle)
       colors = complementaries(spectrum[params.colorSeed()])
+      //colors = insHexColors()
       audioElement.addEventListener('canplaythrough', () => {
         console.log('ready')
       }, false)
@@ -317,6 +345,7 @@
       audio = 'https://ordinals.com/content/' + insID
       audioElement.src = audio
       colors = complementaries(spectrum[params.colorSeed()])
+      //colors = insHexColors()
     }, false)
   </script>
 </body>
