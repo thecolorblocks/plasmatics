@@ -212,7 +212,7 @@
 
     const centroid = (frequencyData) => {
       const sum = frequencyData.reduce((acc, value) => acc + value, 0)
-      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value, 0)
+      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value * index, 0)
       return (sum === 0) ? 0 : weightedSum / sum
     }
 
@@ -224,7 +224,7 @@
 
     const melCentroid = (frequencyData, frequencyBinWidth) => {
       const sum = frequencyData.reduce((acc, value) => acc + value, 0)
-      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value * mel(index*frequencyBinWidth) * (255-index), 0)
+      const weightedSum = frequencyData.reduce((acc, value, index) => acc + value * mel(index*frequencyBinWidth), 0)
       return (sum === 0) ? 0 : weightedSum / sum
     }
 
@@ -263,8 +263,8 @@
         this.distance = Math.abs( cymatics(this.x, this.y, params[`m${this.type}`], params.n()) )
         this.oscillation = params.v * this.distance
         if (this.oscillation <= minWalk) this.oscillation = minWalk
-        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.distance) * params.noiseL
-        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * noise(this.distance) * params.noiseL
+        this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
+        this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
         this.updateOffsets()
       }
 
@@ -281,7 +281,7 @@
           strokeWeight((1-this.distance*.5)*params.particleSizeFactor)
         } else {
           stroke('white')
-          strokeWeight((1-this.distance*.5))
+          strokeWeight((1-this.distance*.5)*2)
         }
         point(this.xScaled, this.yScaled)
       }
