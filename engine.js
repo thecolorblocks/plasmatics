@@ -1,3 +1,9 @@
+const seed = window.seed
+
+let audio = 'https://ordinals.com/content/' + seed
+
+const params = window.params
+
 import * as fflate from 'https://ordinals.com/content/f815bd5c566c6e46de5cdb6ccb3a7043c63deeba61f4234baea84b602b0d4440i0'
 
 const b64data = await (await fetch('http://ordinals.com/content/255ce0c5a0d8aca39510da72e604ef8837519028827ba7b7f723b7489f3ec3a4i0')).text()
@@ -12,14 +18,16 @@ const script = document.createElement('script')
 script.innerHTML = code
 document.head.appendChild(script)
 
+const loading = document.querySelector('div#loading')
+const clickToPlay = document.querySelector('div#play')
+
 const audioSetup = () => {
   const audioCtx = new AudioContext()
   const analyser = audioCtx.createAnalyser()
-  const button = document.querySelector('#button')
   const audioElement = new Audio(audio)
   audioElement.crossOrigin = "anonymous"
   audioElement.type = 'audio/mp3'
-  audioElement.loop = true
+  audioElement.loop = false
   const sourceNode = audioCtx.createMediaElementSource(audioElement)
   
   sourceNode.connect(analyser)
@@ -37,50 +45,42 @@ const audioSetup = () => {
 
 let audioElement, audioCtx, analyser, frequencyData, timeDomainData, bufferLength, frequencyBinWidth, amplitude
 
-let particles
-let A = 0.02
-let minWalk = 0.01
+let particles, addnParticles
+let minWalk = 0.005
 
-const getN = () => {
-  return parseInt(insID[0], 16) % 8 + 1
+const colorWheel16 = (initialAngle) => {
+  const nColors = 16
+  const degree = params.HSBFactor / nColors
+  let colors = []
+  colorMode(HSB, params.HSBFactor)
+  for (let i = 0; i < nColors; i++) {
+    let c = color(initialAngle + i*degree, params.saturation, params.brightness)
+    colors.push(c)
+  }
+  return colors
 }
-
-const getA = () => {
-  return parseInt(insID[1], 16) % 4 + 1
-}
-
-const getB = () => {
-  return parseInt(insID[2], 16) % 4 + 1
-}
-
-const params = {
-  nParticles: 12000,
-  canvasSize: [600, 600],
-  m0: 0,
-  m1: 0,
-  m2: 0,
-  n: getN,
-  a: getA,
-  b: getB,
-  v: 0.04,
-  noiseL: 1.1,
-  shapeConstant: 0.006,
-  shapeBaseConstant: 0,
-  ampFactor: 0.00001,
-  colors: [255, 255, 255],
-  colorMode: false
-}
-
-const colors = [
-  'cyan',
-  'purple',
-  'blue'
-]
 
 const pi = Math.PI
 
+let spectrum = []
+
+let colors = []
+
 const cymatics = (x, y, m, n) => {
-  return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y+.5)) - params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y+.5))
+  return params.a() * Math.cos(pi*n*(x-.5)) * Math.cos(pi*m*(y-.5)) + params.b() * Math.cos(pi*m*(x-.5)) * Math.cos(pi*n*(y-.5))
+}
+
+const complementaries = (c) => {
+  let wholeAngle = params.HSBFactor
+  let angle = Math.floor(wholeAngle / 6)
+  let h = hue(c)
+  let colors = [
+    color(h, params.saturation, params.brightness),
+    color((h+angle)%wholeAngle, params.saturation, params.brightness),
+    color((h+angle*2)%wholeAngle, params.saturation, params.brightness)
+  ]
+  colors.map(c => c.setAlpha(params.particleAlpha))
+  return colors
 }
 
 const bark = (f) => {
@@ -120,11 +120,15 @@ const initParticles = () => {
   for (let i = 0; i < params.nParticles; i++){
     particles[i] = new Particle()
   }
+  addnParticles = []
+  for (let j = 0; j < params.addnParticles; j++) {
+    addnParticles[j] = new Particle()
+  }
 }
 
 const initDOM = () => {
-  let canvas = createCanvas(...params.canvasSize)
-  canvas.parent('cymatics')
+  let canvas = createCanvas(...params.canvasSize())
+  canvas.parent('plasmatics')
 }
 
 class Particle {
@@ -133,15 +137,16 @@ class Particle {
     this.x = random(0, 1)
     this.y = random(0, 1)
     this.oscillation
-    this.type = Math.floor(random(0, 3))
+    this.type = Math.floor(random(0, params.particleVariationL))
+    this.distance
 
     this.updateOffsets()
   }
 
   // Use shader code to optimize
   move() {
-    let distance = cymatics(this.x, this.y, params[`m${this.type}`], params.n())
-    this.oscillation = params.v * Math.abs(distance)
+    this.distance = Math.abs( cymatics(this.x, this.y, params[`m${this.type}`], params.n()) )
+    this.oscillation = params.v * this.distance
     if (this.oscillation <= minWalk) this.oscillation = minWalk
     this.x += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
     this.y += (Math.random() * (this.oscillation*2) - this.oscillation) * params.noiseL
@@ -156,8 +161,13 @@ class Particle {
   }
 
   draw(){
-    stroke(params.colors[0]*.7+255*.3, params.colors[1]*.7+255*.3, params.colors[2]*.7+255*.3)
-    strokeWeight(2)
+    if (params.isColor) {
+      stroke(colors[this.type])
+      strokeWeight((1-this.distance*.5)*params.particleSizeFactor())
+    } else {
+      stroke('white')
+      strokeWeight((1-this.distance*.5)*2)
+    }
     point(this.xScaled, this.yScaled)
   }
 }
@@ -167,30 +177,45 @@ const resonate = () => {
   analyser.getByteTimeDomainData(timeDomainData)
   amplitude = timeDomainData.reduce((sum, value) => sum + value, 0) / bufferLength
   minWalk = amplitude * params.ampFactor
-  let barkConstant = Math.ceil(barkCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
-  let melConstant = Math.ceil(melCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
-  let centroidConstant = Math.ceil(centroid(frequencyData)*params.shapeConstant) + params.shapeBaseConstant
+  let barkConstant = (barkCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
+  let melConstant = (melCentroid(frequencyData, frequencyBinWidth)*params.shapeConstant) + params.shapeBaseConstant
+  let centroidConstant = (centroid(frequencyData)*params.shapeConstant) + params.shapeBaseConstant
   params.m0 = barkConstant
   params.m1 = melConstant
   params.m2 = centroidConstant
-  if (params.colorMode) params.colors = [frequencyData[2], frequencyData[25], frequencyData[50]]
   particles.map( p => {
     p.move()
     p.draw()
   })
+  if (!params.isColor) {
+    addnParticles.map( p => {
+      p.move()
+      p.draw()
+    })
+  }
 }
 
 const resetCanvas = () => {
   background('black')
-  stroke('white')
 }
 
 window.setup = () => {
   [audioElement, audioCtx, analyser, frequencyData, timeDomainData, bufferLength, frequencyBinWidth] = audioSetup()
   initDOM()
   initParticles()
+  colorMode(HSB, 255)
+  noiseSeed(params.noiseSeed)
+  spectrum = colorWheel16(params.HSBInitialAngle)
+  colors = complementaries(spectrum[params.colorSeed()])
+  //colors = insHexColors()
   audioElement.addEventListener('canplaythrough', () => {
-    console.log('ready')
+    loading.style.display = 'none'
+  }, false)
+
+  audioElement.addEventListener('ended', () => {
+    window.setTimeout(() => {
+      audioElement.play()
+    }, params.waitingPeriod)
   }, false)
 }
 
@@ -199,15 +224,8 @@ window.draw = () => {
   resonate()
 }
 
-const begin = () => {
+clickToPlay.addEventListener('click', () => {
   audioCtx.resume()
   audioElement.play()
-}
-
-button.addEventListener('click', begin, false)
-
-select.addEventListener('change', (event) => {
-  insID = event.target.value
-  audio = 'https://ordinals.com/content/' + insID
-  audioElement.src = audio
+  clickToPlay.style.display = 'none'
 }, false)

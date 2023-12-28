@@ -1,0 +1,33 @@
+<div style="display: flex; width: 100vw; height: 100vh; justify-content: center; align-items: center;">
+  <button id="generate" style="font-size: 50px;">
+    Generate
+  </button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+<script type="module">
+  import ost from './ost.js'
+  const zip = new JSZip()
+  const template = await (await fetch('template.txt')).text()
+  const button = document.querySelector('button#generate')
+  button.addEventListener('click', async () => {
+    for (let i = 0; i < ost.length; i++){
+      let t = template.slice()
+      let filename = `plasmatics-${i.toString().padStart(2, '0')}.html`
+      t = t.replace(/TITLE/g, `PLASMATICS #${i}`)
+      t = t.replace(/SEED/g, `'${ost[i]}'`)
+      zip.file(filename, t)
+    }
+    const blob = await zip.generateAsync({type: 'blob'})
+    download(blob, 'plasmatics.zip')
+  }, false)
+
+  const download = (content, fileName) => {
+    const blob = new Blob([content], { type: 'text/html' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+</script>

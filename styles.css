@@ -1,0 +1,44 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #202020;
+  color: white;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+div#loading {
+  z-index: 3;
+  position: fixed;
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background: #202020;
+  justify-content: center;
+  align-items: center;
+}
+div#play {
+  z-index: 2;
+  cursor: pointer;
+  position: fixed;
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+  background: #202020;
+  opacity: 0.5;
+}
+main#plasmatics {
+  z-index: 1;
+  position: fixed;
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+}
+canvas {
+  display: block;
+}
+#progressBar {
+  z-index: 4;
+}
