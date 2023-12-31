@@ -143,7 +143,6 @@ class Particle {
     this.updateOffsets()
   }
 
-  // Use shader code to optimize
   move() {
     this.distance = Math.abs( cymatics(this.x, this.y, params[`m${this.type}`], params.n()) )
     this.oscillation = params.v * this.distance
@@ -207,7 +206,6 @@ window.setup = () => {
   noiseSeed(params.noiseSeed)
   spectrum = colorWheel16(params.HSBInitialAngle)
   colors = complementaries(spectrum[params.colorSeed()])
-  //colors = insHexColors()
   audioElement.addEventListener('canplaythrough', () => {
     loading.style.display = 'none'
   }, false)

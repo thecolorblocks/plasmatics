@@ -73,6 +73,6 @@ window.keyPressed = () => {
     saveCanvas('capture.png')
   }
   if (keyCode === KEY_G) {
-    saveGif('capture', 5)
+    saveGif('capture', 8)
   }
 }
